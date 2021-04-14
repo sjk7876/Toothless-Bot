@@ -1,2 +1,2 @@
 # Toothless-Bot
-Discord bot for various purposes.
+A Python 3.x Discord bot for various purposes.
