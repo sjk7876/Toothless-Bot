@@ -3,10 +3,11 @@ import os
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
-   
+
 import firebase_admin
 from firebase_admin import credentials
-from google.cloud import firestore
+from firebase_admin import firestore
+from google.cloud.firestore import Increment
 
 from dotenv import load_dotenv
 
@@ -16,11 +17,12 @@ import uwuify
 firebaseCred = credentials.Certificate('.\\firebase.json')
 firebase_admin.initialize_app(firebaseCred)
 
-db = firebase_admin
+db = firestore.client()
 
 intents = discord.Intents.default()
 intents.members = True
 intents.presences = True
+
 
 # Loads env file
 load_dotenv()
@@ -33,26 +35,6 @@ BAD_WORDS = ['ass', 'bitch', 'fuck', 'cunt', 'shit', 'wank', 'dick', 'fag']
 
 # Sets prefix for bot
 client = Bot(command_prefix=BOT_PREFIX, intents=intents)
-
-# Pain leaderboard jazz
-fileLength = len(open('pain_leaderboard.txt').readlines())
-fileReader = open('pain_leaderboard.txt', 'r')
-
-painLB = []
-fileReader.seek(0)
-a = ['', 0]
-
-for n in range(fileLength):
-    if n % 2 == 0:
-        a[0] = fileReader.readline().replace('\n', '')
-
-    if n % 2 == 1:
-        a[1] = int(fileReader.readline().replace('\n', ''))
-        painLB.append(a)
-        a = ['', 0]
-    n += 1
-
-fileReader.close()
 
 
 # When client comes online
@@ -77,13 +59,76 @@ async def on_ready():
             print('I need to be able to read message history in ' + guild.name + ' - ' + str(guild.id))
 
 
+# On member join, add to database
+@client.event
+async def on_member_join(member):
+    try:
+        data = {
+            u'username': member.name,
+            u'userID': member.id,
+            u'pain': int(0)
+        }
+        db.collection(u'leaderboard/' + str(member.guild.id) + '/users')\
+            .document(str(member.id))\
+            .set(data, merge=True)
+        print('Added new member: ', member.name, ':', member.id)
+    except():
+        print('Error writing document')
+
+    # await member.send(content='It\'s Pain Time.')
+
+
+@client.event
+async def on_guild_join(server):
+    print('Joined guild -', server.name, server.id)
+    try:
+        db.collection(u'leaderboard/' + str(server.id) + '/users')
+        db.collection(u'leaderboard').document(str(server.id)).set({u'ServerName': str(server.name)})
+
+        print('Added guild -', server.name, server.id)
+
+    except AttributeError:
+        print('Server already exists.')
+
+    try:
+        for user in server.members:
+            if is_bot(user):
+                print('User', user.name, 'is a bot.')
+                continue
+
+            data = {
+                u'username': str(user.name),
+                u'userID': user.id,
+                u'pain': 0
+            }
+
+            db.collection(u'leaderboard/' + str(server.id) + '/users')\
+                .document(str(user.id))\
+                .set(data, merge=True)
+
+            print('Added user', user.name, user.id, 'to the database of guild', server.name, server.id)
+
+    except():
+        print('Couldn\t add that guy.')
+
+
+'''
+@client.event
+async def on_guild_leave(server):
+    # db.collection('leaderboard').document(str(server.id).delete()
+
+'''
+
+# EDIT!!! ignore message if in DM for now
+
+
 # On every message scan it
 @client.event
 async def on_message(ctx):
     print(f'{ctx.author}: {ctx.content}')
 
     # Ignore if from bot
-    if is_me(ctx):
+    if is_bot(ctx.author):
         return
 
     # Respond if it contains keyword
@@ -95,7 +140,6 @@ async def on_message(ctx):
         await ctx.channel.send('die.')
 
     if 'pog' in ctx.content.lower():
-        emoji = None
         emoji = discord.utils.get(ctx.guild.emojis, name="poggers")
         # await message.channel.send(emoji)
         if emoji is not None:
@@ -118,8 +162,7 @@ async def on_message(ctx):
 
     # pain jazz
     if 'pain' in ctx.content.lower():
-        addPain(str(ctx.author.id))
-        # emoji = discord.utils.get(ctx.guild.emojis, name="poggers")
+        addPain(ctx.author)
         await ctx.add_reaction('✅')
 
     if ctx.channel.guild.me.guild_permissions.manage_messages:
@@ -240,9 +283,12 @@ async def square(ctx, number):
     squared_value = int(number) * int(number)
     await ctx.channel.send(str(number) + " squared is " + str(squared_value))
 
+
 '''
 Don't hardcode the message id
 '''
+
+
 @client.event
 async def on_raw_reaction_add(payload):
     message_id = payload.message_id
@@ -362,105 +408,60 @@ async def hug(ctx, intensity: int = 1):
     await ctx.send(msg)
 
 
+# EDIT !!!
 @client.command(name='leaderboard',
                 aliases=['lb'],
                 brief='Displays top pain.',
                 pass_context=True)
 async def leaderboard(ctx):
-    topIndex = 0
-    painLBRows = len(painLB)
-    print(painLB)
-
-    for i in range(painLBRows):
-        if painLB[i][1] > painLB[topIndex][1]:
-            topIndex = i
-
-    #embed = discord.Embed(title='Most Pain', description=''.join(description))
-
-    response = 'Top User: <@' + str(painLB[topIndex][0]) + \
-               '>\n# Of Pain: ' + str(painLB[topIndex][1])
-
-    await ctx.send(response)
+    response = ''
+    lowestPain = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')\
+        .order_by(u'pain', direction=firestore.Query.DESCENDING)\
+        .limit(3)\
+        .stream()
+    for user in lowestPain:
+        response += f"<@{str(user.get(u'userID'))}> - {user.get(u'pain')}\n"
+    embed = discord.Embed(title='Top 3 Pain', description=response)
+    await ctx.send(embed=embed)
 
 
 @client.command(name='lookup',
                 brief='Looks up target user\'s pain.',
                 pass_context=True)
 async def lookup(ctx, name):
-    userID = name.strip('<>@!')
-    for i in range(len(painLB)):
-        if userID == painLB[i][0]:
-            response = '<@' + str(painLB[i][0]) + '> has ' + str(painLB[i][1]) + ' pain.'
-            await ctx.channel.send(response)
-            return
+    print(str(name.strip('<@!>')))
 
-        i += 1
-    response = name + ' has not had any pain.'
-    await ctx.channel.send(response)
-
-
-@commands.has_permissions(administrator=True)
-@client.command(hidden=True,
-                aliases=['save'],
-                pass_context=True)
-async def save_leaderboard(ctx):
-    if ctx.channel.guild.me.guild_permissions.manage_messages:
-        message = ctx.message
-        await message.delete(delay=0.75)
-    savePainLB()
-    await ctx.channel.send('Leaderboard has been saved.')
-
-
-@save_leaderboard.error
-async def save_leaderboardError(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        if ctx.channel.guild.me.guild_permissions.manage_messages:
-            message = ctx.message
-            await message.delete(delay=0.75)
-        await ctx.send('lol mate what u doin that isn\'t a real command')
+    userPain = db.collection('leaderboard/' + str(ctx.guild.id) + '/users') \
+        .document(str(name.strip('<@!>')))
+    response = ''
+    print('a')
+    response = f"<@{str(userPain.get(u'userID'))}> -  {userPain.get(u'pain')}"
+    print('b')
+    embed = discord.Embed(title='Top 3 Pain', description=response)
+    await ctx.send(embed=embed)
+    print('c')
 
 
 # Shut down bot
 @client.command(hidden=True)
 @commands.is_owner()
 async def shutdown(ctx):
-    savePainLB()
     await ctx.bot.logout()
 
 
-def is_me(ctx):
-    return ctx.author == client.user
+def is_bot(user):
+    if user.bot:
+        return True
 
 
-def addPain(userID: str):
-    if len(painLB) == 0:
-        painLB.append([userID, 1])
-
-    for i in range(len(painLB)):
-        if userID == painLB[i][0]:
-            painLB[i][1] += 1
-            return
-        i += 1
-
-    painLB.append([userID, 1])
-
-
-def savePainLB():
-    fileRead = open('pain_leaderboard.txt', 'w')
-    fileRead.seek(0)
-
-    global painLB
-
-    painLBRows = len(painLB)
-    painLBCols = len(painLB[0])
-
-    for i in range(painLBRows):
-        for j in range(painLBCols):
-            x = str(painLB[i][j]) + '\n'
-            fileRead.write(x)
-    fileRead.close()
-
-    print('Leaderboard is saved.')
+def addPain(member):
+    # Check if user has a database
+    try:
+        db.collection(u'leaderboard/' + str(member.guild.id) + '/users').document(str(member.id)) \
+            .update({u'pain': Increment(1)})
+        print('Incremented pain.')
+    except():
+        print('Error writing to document')
 
 
 # Runs the client
