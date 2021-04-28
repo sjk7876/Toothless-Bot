@@ -45,7 +45,7 @@ async def on_ready():
     # await client.get_channel(823772094944641046).send('{} is online!'.format(client.user.name))
 
     # Sets bot status
-    game = discord.Game('messing with PyCharm')
+    game = discord.Game('with PyCharm')
     await client.change_presence(status=discord.Status.online, activity=game)
 
     for guild in client.guilds:
@@ -165,13 +165,13 @@ async def on_message(ctx):
         addPain(ctx.author)
         await ctx.add_reaction('✅')
 
-    if ctx.channel.guild.me.guild_permissions.manage_messages:
+    """if ctx.channel.guild.me.guild_permissions.manage_messages:
         for i in BAD_WORDS:
             if i in str(ctx.content).lower():
                 message = ctx.message
                 await message.delete(delay=0.75)
                 await ctx.channel.send('no bad words.')
-                return
+                return"""
 
     # Let other commands work
     await client.process_commands(ctx)
@@ -343,7 +343,7 @@ async def on_raw_reaction_remove(payload):
                 hidden=True,
                 pass_context=True)
 async def latency(ctx):
-    await ctx.send("Latency of the bot is {} ms".format(round(client.latency*1000), 5))
+    await ctx.send("Latency of the bot is {} ms".format(round(client.latency*1000), 10))
 
 
 @commands.has_permissions(manage_messages=True)
@@ -408,7 +408,6 @@ async def hug(ctx, intensity: int = 1):
     await ctx.send(msg)
 
 
-# EDIT !!!
 @client.command(name='leaderboard',
                 aliases=['lb'],
                 brief='Displays top pain.',
@@ -429,17 +428,31 @@ async def leaderboard(ctx):
                 brief='Looks up target user\'s pain.',
                 pass_context=True)
 async def lookup(ctx, name):
-    print(str(name.strip('<@!>')))
+    user = client.get_user(int(name.strip('<@!>')))
+    print(user)
+    print(user.id)
 
-    userPain = db.collection('leaderboard/' + str(ctx.guild.id) + '/users') \
-        .document(str(name.strip('<@!>')))
+    userLookup = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')
+        # .document(str(user.id))
     response = ''
     print('a')
-    response = f"<@{str(userPain.get(u'userID'))}> -  {userPain.get(u'pain')}"
+    doc_ref = user
+    doc = doc_ref.get('/' + str(user.id))
+    if doc.exists:
+        print(f'Document data: {doc.to_dict()}')
+    else:
+        print(u'No such document!')
+
+    """
+    # print(f'{userLookup.id} => {userLookup.to_dict()}')
+    response = f"<@{str(userLookup.get(str(user.id), u'userID'))}> - " \
+               f"{userLookup.get(str(user.id), u'pain')}"
     print('b')
-    embed = discord.Embed(title='Top 3 Pain', description=response)
+
+    title = str(user.name) + '\'s Pain'
+    embed = discord.Embed(title=title, description=response)
     await ctx.send(embed=embed)
-    print('c')
+    print('c')"""
 
 
 # Shut down bot
