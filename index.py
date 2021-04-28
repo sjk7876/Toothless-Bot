@@ -269,9 +269,7 @@ async def speakError(ctx, error):
                 aliases=['david1', 'david2'],
                 pass_context=True)
 async def david(ctx):
-    response = 'david is the best <3'
-    await ctx.send(response)
-    await ctx.send('and so are you {}'.format(ctx.author.mention))
+    await ctx.send('david is the best <3\nand so are you {}'.format(ctx.author.mention))
 
 
 # Commands for !square - square a number
@@ -371,8 +369,6 @@ async def poll(ctx, question: str, *options: str):
     embed = discord.Embed(title=question, description=''.join(description))
 
     react_message = await ctx.channel.send(embed=embed)
-    print('uwu')
-    print(reactions)
 
     for reaction in reactions[:len(options)]:
         await react_message.add_reaction(reaction)
@@ -418,8 +414,10 @@ async def leaderboard(ctx):
         .order_by(u'pain', direction=firestore.Query.DESCENDING)\
         .limit(3)\
         .stream()
+    i = 1
     for user in lowestPain:
-        response += f"<@{str(user.get(u'userID'))}> - {user.get(u'pain')}\n"
+        response += f"{i}. <@{str(user.get(u'userID'))}> - {user.get(u'pain')}\n"
+        i += 1
     embed = discord.Embed(title='Top 3 Pain', description=response)
     await ctx.send(embed=embed)
 
@@ -472,7 +470,6 @@ def addPain(member):
     try:
         db.collection(u'leaderboard/' + str(member.guild.id) + '/users').document(str(member.id)) \
             .update({u'pain': Increment(1)})
-        print('Incremented pain.')
     except():
         print('Error writing to document')
 
