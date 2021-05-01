@@ -45,7 +45,7 @@ async def on_ready():
     # await client.get_channel(823772094944641046).send('{} is online!'.format(client.user.name))
 
     # Sets bot status
-    game = discord.Game('with PyCharm')
+    game = discord.Game('with pain')
     await client.change_presence(status=discord.Status.online, activity=game)
 
     for guild in client.guilds:
@@ -161,7 +161,7 @@ async def on_message(ctx):
         await ctx.channel.send('{}, hi!'.format(ctx.author.mention))
 
     # pain jazz
-    if 'pain' in ctx.content.lower():
+    if 'pain' == ctx.content.lower():
         addPain(ctx.author)
         await ctx.add_reaction('✅')
 
@@ -427,30 +427,19 @@ async def leaderboard(ctx):
                 pass_context=True)
 async def lookup(ctx, name):
     user = client.get_user(int(name.strip('<@!>')))
-    print(user)
-    print(user.id)
-
-    userLookup = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')
-        # .document(str(user.id))
     response = ''
-    print('a')
-    doc_ref = user
-    doc = doc_ref.get('/' + str(user.id))
-    if doc.exists:
-        print(f'Document data: {doc.to_dict()}')
-    else:
-        print(u'No such document!')
 
-    """
-    # print(f'{userLookup.id} => {userLookup.to_dict()}')
-    response = f"<@{str(userLookup.get(str(user.id), u'userID'))}> - " \
-               f"{userLookup.get(str(user.id), u'pain')}"
-    print('b')
+    if is_bot(user):
+        await ctx.send('That user is a bot!')
+        return
 
-    title = str(user.name) + '\'s Pain'
-    embed = discord.Embed(title=title, description=response)
-    await ctx.send(embed=embed)
-    print('c')"""
+    userLookup = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')\
+        .where(u'userID', u'==', user.id).stream()
+
+    for find in userLookup:
+        findPain = str(find.get(u'pain'))
+        response = str(user.name) + '\'s Pain: **' + findPain + '**'
+        await ctx.send(response)
 
 
 # Shut down bot
