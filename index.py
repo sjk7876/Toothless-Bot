@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 
 import uwuify
 
+from urllib.request import urlopen
+import json
+
 firebaseCred = credentials.Certificate('.\\firebase.json')
 firebase_admin.initialize_app(firebaseCred)
 
@@ -27,8 +30,11 @@ GUILD = os.getenv('DISCORD_GUILD')
 BOT_PREFIX = ['.']
 BAD_WORDS = ['ass', 'bitch', 'fuck', 'cunt', 'shit', 'wank', 'dick', 'fag']
 
+botDescription = 'Best bot that does nothing special.'
+helpCommand = commands.DefaultHelpCommand(no_category='Commands', LeaderboardCog='Commands')
+
 # Sets prefix for bot
-client = Bot(command_prefix=BOT_PREFIX, intents=intents)
+client = Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=helpCommand, description=botDescription)
 
 initial_extensions = ['cogs.leaderboard']
 
@@ -115,7 +121,7 @@ async def on_message(ctx):
 # Purge command
 @client.command(name='purge',
                 description='Deletes previous X number of messages.',
-                brief='Purges chat.',
+                brief='Purges the chat',
                 pass_context=True)
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx, numToDelete: int):
@@ -143,6 +149,7 @@ async def purgeError(ctx, error):
 
 @client.command(name='uwu',
                 description='uwuify\'s text',
+                brief='UwUify\'s text.',
                 aliases=['uwuify', 'owoify', 'owo'],
                 usage='[message to uwuify]',
                 pass_context=True)
@@ -199,8 +206,8 @@ async def speakError(ctx, error):
 
 # Commands for !david
 @client.command(name='david',
-                description="It's David time.",
-                brief="All about David.",
+                description="It's David time",
+                brief="All about David",
                 aliases=['david1', 'david2'],
                 pass_context=True)
 async def david(ctx):
@@ -209,8 +216,8 @@ async def david(ctx):
 
 # Commands for !square - square a number
 @client.command(name='square',
-                description='Squares the input.',
-                brief='Squares the input.',
+                description='Squares the input',
+                brief='Squares the input',
                 pass_context=True)
 async def square(ctx, number):
     squared_value = int(number) * int(number)
@@ -281,7 +288,7 @@ async def latency(ctx):
 
 @commands.has_permissions(manage_messages=True)
 @client.command(name='poll',
-                brief='Creates a poll.',
+                brief='Creates a poll',
                 pass_context=True)
 async def poll(ctx, question: str, *options: str):
     if len(options) < 1:
@@ -337,6 +344,27 @@ async def hug(ctx, intensity: int = 1):
     elif intensity >= 10:
         msg = "(づ￣ ³￣)づ" + name + " ⊂(´・ω・｀⊂)"
     await ctx.send(msg)
+
+
+@client.command(name='iss',
+                brief='ISS Data.',
+                description='Gives positional and other data about the ISS.',
+                pass_context=True)
+async def iss(ctx):
+    issResponse = json.loads(urlopen("https://api.wheretheiss.at/v1/satellites/25544").read())
+
+    response = '__International Space Station Data:__\n' \
+               + 'Location: ' + str(issResponse['longitude']) + ', ' + str(issResponse['latitude'])\
+               + '\nHeight: ' + str(round(issResponse['altitude'], 2)) + ' ' + str(issResponse['units'])\
+               + '\nVelocity: ' + str(round(issResponse['velocity'], 2)) + ' ' + str(issResponse['units']) + ' per hour'
+
+    link = 'https://api.wheretheiss.at/v1/coordinates/' + \
+           str(issResponse['latitude']) + ',' + str(issResponse['longitude'])
+    issResponse2 = json.loads(urlopen(link).read())
+
+    response += '\n\nLink to Location: ' + str(issResponse2['map_url'])
+
+    await ctx.send(response)
 
 
 def is_bot(user):
