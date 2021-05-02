@@ -1,14 +1,8 @@
 import discord
 from discord.ext import commands
 
-import firebase_admin
-from firebase_admin import credentials
 from firebase_admin import firestore
 from google.cloud.firestore import Increment
-
-
-'''firebaseCred = credentials.Certificate('.\\firebase.json')
-firebase_admin.initialize_app(firebaseCred)'''
 
 db = firestore.client()
 
@@ -96,7 +90,10 @@ class LeaderboardCog(commands.Cog):
         # Let other commands work
         '''await self.bot.process_commands(ctx)'''
 
-    @commands.command(name='leaderboard', aliases=['lb'], brief='Displays top pain.', pass_context=True)
+    @commands.command(name='leaderboard',
+                      aliases=['lb'],
+                      brief='Displays top pain',
+                      pass_context=True)
     async def leaderboard(self, ctx):
         response = ''
         lowestPain = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')\
@@ -110,7 +107,9 @@ class LeaderboardCog(commands.Cog):
         embed = discord.Embed(title='Top 3 Pain', description=response)
         await ctx.send(embed=embed)
 
-    @commands.command(name='lookup', brief='Looks up target user\'s pain.', pass_context=True)
+    @commands.command(name='lookup',
+                      brief='Looks up target user\'s pain',
+                      pass_context=True)
     async def lookup(self, ctx, name):
         user = self.bot.get_user(int(name.strip('<@!>')))
 
