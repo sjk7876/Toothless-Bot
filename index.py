@@ -351,6 +351,7 @@ async def hug(ctx, intensity: int = 1):
                 description='Gives positional and other data about the ISS.',
                 pass_context=True)
 async def iss(ctx):
+    """https://wheretheiss.at/w/developer"""
     issResponse = json.loads(urlopen("https://api.wheretheiss.at/v1/satellites/25544").read())
 
     response = '__International Space Station Data:__\n' \
