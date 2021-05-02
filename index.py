@@ -6,23 +6,17 @@ from discord.ext.commands import Bot
 
 import firebase_admin
 from firebase_admin import credentials
-from firebase_admin import firestore
-from google.cloud.firestore import Increment
 
 from dotenv import load_dotenv
 
 import uwuify
 
-
 firebaseCred = credentials.Certificate('.\\firebase.json')
 firebase_admin.initialize_app(firebaseCred)
-
-db = firestore.client()
 
 intents = discord.Intents.default()
 intents.members = True
 intents.presences = True
-
 
 # Loads env file
 load_dotenv()
@@ -35,6 +29,12 @@ BAD_WORDS = ['ass', 'bitch', 'fuck', 'cunt', 'shit', 'wank', 'dick', 'fag']
 
 # Sets prefix for bot
 client = Bot(command_prefix=BOT_PREFIX, intents=intents)
+
+initial_extensions = ['cogs.leaderboard']
+
+if __name__ == '__main__':
+    for extension in initial_extensions:
+        client.load_extension(extension)
 
 
 # When client comes online
@@ -58,66 +58,6 @@ async def on_ready():
         if not guild.me.guild_permissions.read_message_history:
             print('I need to be able to read message history in ' + guild.name + ' - ' + str(guild.id))
 
-
-# On member join, add to database
-@client.event
-async def on_member_join(member):
-    try:
-        data = {
-            u'username': member.name,
-            u'userID': member.id,
-            u'pain': int(0)
-        }
-        db.collection(u'leaderboard/' + str(member.guild.id) + '/users')\
-            .document(str(member.id))\
-            .set(data, merge=True)
-        print('Added new member: ', member.name, ':', member.id)
-    except():
-        print('Error writing document')
-
-    # await member.send(content='It\'s Pain Time.')
-
-
-@client.event
-async def on_guild_join(server):
-    print('Joined guild -', server.name, server.id)
-    try:
-        db.collection(u'leaderboard/' + str(server.id) + '/users')
-        db.collection(u'leaderboard').document(str(server.id)).set({u'ServerName': str(server.name)})
-
-        print('Added guild -', server.name, server.id)
-
-    except AttributeError:
-        print('Server already exists.')
-
-    try:
-        for user in server.members:
-            if is_bot(user):
-                print('User', user.name, 'is a bot.')
-                continue
-
-            data = {
-                u'username': str(user.name),
-                u'userID': user.id,
-                u'pain': 0
-            }
-
-            db.collection(u'leaderboard/' + str(server.id) + '/users')\
-                .document(str(user.id))\
-                .set(data, merge=True)
-
-            print('Added user', user.name, user.id, 'to the database of guild', server.name, server.id)
-
-    except():
-        print('Couldn\t add that guy.')
-
-
-'''
-@client.event
-async def on_guild_leave(server):
-    # db.collection('leaderboard').document(str(server.id).delete()
-
-'''
 
 # EDIT!!! ignore message if in DM for now
 
@@ -159,11 +99,6 @@ async def on_message(ctx):
 
     if 'Toothless!' in ctx.content:
         await ctx.channel.send('{}, hi!'.format(ctx.author.mention))
-
-    # pain jazz
-    if 'pain' == ctx.content.lower():
-        addPain(ctx.author)
-        await ctx.add_reaction('✅')
 
     """if ctx.channel.guild.me.guild_permissions.manage_messages:
         for i in BAD_WORDS:
@@ -404,63 +339,9 @@ async def hug(ctx, intensity: int = 1):
     await ctx.send(msg)
 
 
-@client.command(name='leaderboard',
-                aliases=['lb'],
-                brief='Displays top pain.',
-                pass_context=True)
-async def leaderboard(ctx):
-    response = ''
-    lowestPain = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')\
-        .order_by(u'pain', direction=firestore.Query.DESCENDING)\
-        .limit(3)\
-        .stream()
-    i = 1
-    for user in lowestPain:
-        response += f"{i}. <@{str(user.get(u'userID'))}> - {user.get(u'pain')}\n"
-        i += 1
-    embed = discord.Embed(title='Top 3 Pain', description=response)
-    await ctx.send(embed=embed)
-
-
-@client.command(name='lookup',
-                brief='Looks up target user\'s pain.',
-                pass_context=True)
-async def lookup(ctx, name):
-    user = client.get_user(int(name.strip('<@!>')))
-    response = ''
-
-    if is_bot(user):
-        await ctx.send('That user is a bot!')
-        return
-
-    userLookup = db.collection('leaderboard/' + str(ctx.guild.id) + '/users')\
-        .where(u'userID', u'==', user.id).stream()
-
-    for find in userLookup:
-        findPain = str(find.get(u'pain'))
-        response = str(user.name) + '\'s Pain: **' + findPain + '**'
-        await ctx.send(response)
-
-
-# Shut down bot
-@client.command(hidden=True)
-@commands.is_owner()
-async def shutdown(ctx):
-    await ctx.bot.logout()
-
-
 def is_bot(user):
     if user.bot:
         return True
-
-
-def addPain(member):
-    # Check if user has a database
-    try:
-        db.collection(u'leaderboard/' + str(member.guild.id) + '/users').document(str(member.id)) \
-            .update({u'pain': Increment(1)})
-    except():
-        print('Error writing to document')
 
 
 # Runs the client
