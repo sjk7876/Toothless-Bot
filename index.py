@@ -1,4 +1,5 @@
 import os
+import random
 
 import discord
 from discord.ext import commands
@@ -27,8 +28,16 @@ load_dotenv()
 # Sets variables from env file
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
+TENOR_API_KEY = os.getenv('TENOR_API_KEY')
 BOT_PREFIX = ['.']
 BAD_WORDS = ['ass', 'bitch', 'fuck', 'cunt', 'shit', 'wank', 'dick', 'fag']
+
+catGifList = ['https://tenor.com/view/popcat-gif-19407733',
+                 'https://tenor.com/view/magic-flake-popcat-gif-19747992',
+                 'https://tenor.com/view/pop-cat-poping-popping-party-gif-19362900',
+                 'https://tenor.com/view/pop-cat-polish-cow-meme-gif-19689855',
+                 'https://tenor.com/view/popcat-cat-dance-vibes-gif-19916712',
+              'https://tenor.com/view/ready-cat-wiggle-gif-4625114']
 
 botDescription = 'Best bot that does nothing special.'
 helpCommand = commands.DefaultHelpCommand(no_category='Commands', LeaderboardCog='Commands')
@@ -286,6 +295,7 @@ async def latency(ctx):
     await ctx.send("Latency of the bot is {} ms".format(round(client.latency*1000), 10))
 
 
+# creates poll
 @commands.has_permissions(manage_messages=True)
 @client.command(name='poll',
                 brief='Creates a poll',
@@ -306,16 +316,17 @@ async def poll(ctx, question: str, *options: str):
 
     description = []
     for x, option in enumerate(options):
-        description += '\n {} {}'.format(reactions[x], option)
+        description += '\n {} {}'.format(reactions[x], option)  # displays text EX: option: :1:
 
     embed = discord.Embed(title=question, description=''.join(description))
 
     react_message = await ctx.channel.send(embed=embed)
 
-    for reaction in reactions[:len(options)]:
+    for reaction in reactions[:len(options)]:  # adds reaction emojis
         await react_message.add_reaction(reaction)
 
 
+# triggers when user does not have permissions to run commands
 @poll.error
 async def pollError(ctx, error):
     if isinstance(error, commands.MissingPermissions):
@@ -352,8 +363,11 @@ async def hug(ctx, intensity: int = 1):
                 pass_context=True)
 async def iss(ctx):
     """https://wheretheiss.at/w/developer"""
-    issResponse = json.loads(urlopen("https://api.wheretheiss.at/v1/satellites/25544").read())
+    url = urlopen("https://api.wheretheiss.at/v1/satellites/25544").read()  # url reader copies data
+    issResponse = json.loads(url)  # json reader formats data
+    print(issResponse)
 
+    # retrieves specific data from formatted json
     response = '__International Space Station Data:__\n' \
                + 'Location: ' + str(issResponse['longitude']) + ', ' + str(issResponse['latitude'])\
                + '\nHeight: ' + str(round(issResponse['altitude'], 2)) + ' ' + str(issResponse['units'])\
@@ -366,6 +380,28 @@ async def iss(ctx):
     response += '\n\nLink to Location: ' + str(issResponse2['map_url'])
 
     await ctx.send(response)
+
+
+@client.command(name='gif',
+                brief='Displays a random gif from parameter.',
+                description='Displays a random gif from a top 100 list of the given search parameter.',
+                pass_context=True)
+async def gif(ctx, *msg: str):
+    message = ''
+
+    if not msg:  # If no parameter given, send random gi
+        print('apples')
+    else:
+        for i in range(len(msg)):  # combines msg to one string
+            message += msg[i] + '-'
+
+        r = urlopen(
+            'https://g.tenor.com/v1/search?q=%s&key=%s&limit=%s&contentfilter=%s&media_filter=%s'
+            % (message, TENOR_API_KEY, 50, 'medium', 'minimal')
+        ).read()  # gets top 100 gif data using users keyword
+        msgGif = json.loads(r)  # loads the json
+
+        await ctx.send(msgGif['results'][random.randint(0, 49)]['itemurl'])  # prints gif link
 
 
 def is_bot(user):
