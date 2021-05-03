@@ -384,13 +384,29 @@ async def iss(ctx):
 
 @client.command(name='gif',
                 brief='Displays a random gif from parameter.',
-                description='Displays a random gif from a top 100 list of the given search parameter.',
+                description='Displays a random gif from a top 50 list of the given search parameter.',
                 pass_context=True)
 async def gif(ctx, *msg: str):
     message = ''
 
-    if not msg:  # If no parameter given, send random gi
-        print('apples')
+    if not msg:  # If no parameter given, send random gif
+        # https://g.tenor.com/v1/trending_terms?key=MOHWK7Y8WK7A&limit=20&locale=en_US
+        r = urlopen(
+            'https://g.tenor.com/v1/trending_terms?key=%s&limit=%s&locale=%s'
+            % (TENOR_API_KEY, 20, 'en_US')
+        ).read()  # gets top 20 trending keywords
+        searchTerms = json.loads(r)
+
+        search = searchTerms['results'][random.randint(0, 19)]  # chooses random keyword
+
+        s = urlopen(
+            'https://g.tenor.com/v1/search?q=%s&key=%s&limit=%s&contentfilter=%s&media_filter=%s'
+            % (search.replace(' ', '-'), TENOR_API_KEY, 50, 'medium', 'minimal')
+        ).read()  # gets top 50 gif data using random trending keyword
+        msgGif = json.loads(s)  # loads the json
+
+        await ctx.send(msgGif['results'][random.randint(0, 49)]['itemurl'])  # prints gif link
+
     else:
         for i in range(len(msg)):  # combines msg to one string
             message += msg[i] + '-'
@@ -398,7 +414,7 @@ async def gif(ctx, *msg: str):
         r = urlopen(
             'https://g.tenor.com/v1/search?q=%s&key=%s&limit=%s&contentfilter=%s&media_filter=%s'
             % (message, TENOR_API_KEY, 50, 'medium', 'minimal')
-        ).read()  # gets top 100 gif data using users keyword
+        ).read()  # gets top 50 gif data using users keyword
         msgGif = json.loads(r)  # loads the json
 
         await ctx.send(msgGif['results'][random.randint(0, 49)]['itemurl'])  # prints gif link
