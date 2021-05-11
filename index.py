@@ -1,5 +1,6 @@
 import os
 import random
+
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
@@ -14,7 +15,7 @@ import uwuify
 from urllib.request import urlopen
 import json
 
-firebaseCred = credentials.Certificate('\firebase.json')
+firebaseCred = credentials.Certificate('firebase.json')
 firebase_admin.initialize_app(firebaseCred)
 
 intents = discord.Intents.default()
@@ -69,6 +70,8 @@ async def on_ready():
             print('I need to be able to add reactions in ' + guild.name + ' - ' + str(guild.id))
         if not guild.me.guild_permissions.read_message_history:
             print('I need to be able to read message history in ' + guild.name + ' - ' + str(guild.id))
+     
+    print('done: started')
 
 
 # EDIT!!! ignore message if in DM for now
