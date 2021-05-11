@@ -1,6 +1,5 @@
 import os
 import random
-
 import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
@@ -15,7 +14,7 @@ import uwuify
 from urllib.request import urlopen
 import json
 
-firebaseCred = credentials.Certificate('.\\firebase.json')
+firebaseCred = credentials.Certificate('\firebase.json')
 firebase_admin.initialize_app(firebaseCred)
 
 intents = discord.Intents.default()
@@ -30,14 +29,6 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
 TENOR_API_KEY = os.getenv('TENOR_API_KEY')
 BOT_PREFIX = ['.']
-BAD_WORDS = ['ass', 'bitch', 'fuck', 'cunt', 'shit', 'wank', 'dick', 'fag']
-
-catGifList = ['https://tenor.com/view/popcat-gif-19407733',
-                 'https://tenor.com/view/magic-flake-popcat-gif-19747992',
-                 'https://tenor.com/view/pop-cat-poping-popping-party-gif-19362900',
-                 'https://tenor.com/view/pop-cat-polish-cow-meme-gif-19689855',
-                 'https://tenor.com/view/popcat-cat-dance-vibes-gif-19916712',
-              'https://tenor.com/view/ready-cat-wiggle-gif-4625114']
 
 botDescription = 'Best bot that does nothing special.'
 helpCommand = commands.DefaultHelpCommand(no_category='Commands', LeaderboardCog='Commands')
@@ -46,6 +37,7 @@ helpCommand = commands.DefaultHelpCommand(no_category='Commands', LeaderboardCog
 client = Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=helpCommand, description=botDescription)
 
 initial_extensions = ['cogs.leaderboard']
+
 
 if __name__ == '__main__':
     for extension in initial_extensions:
@@ -60,10 +52,15 @@ async def on_ready():
     # await client.get_channel(823772094944641046).send('{} is online!'.format(client.user.name))
 
     # Sets bot status
-    game = discord.Game('with pain')
+    game = discord.Game('with PyCharm')
     await client.change_presence(status=discord.Status.online, activity=game)
 
     for guild in client.guilds:
+        message = guild.name
+        for channel in guild.text_channels:
+            message += ' - ' + channel.name
+        print(message)
+
         if guild.me.guild_permissions.administrator:
             continue
         if not guild.me.guild_permissions.manage_messages:
@@ -86,14 +83,6 @@ async def on_message(ctx):
     if is_bot(ctx.author):
         return
 
-    # Respond if it contains keyword
-    if 'owo' in ctx.content.lower():
-        if ctx.channel.guild.me.guild_permissions.text.manage_messages:
-            message = ctx.message
-            await message.delete(delay=0.75)
-
-        await ctx.channel.send('die.')
-
     if 'pog' in ctx.content.lower():
         emoji = discord.utils.get(ctx.guild.emojis, name="poggers")
         # await message.channel.send(emoji)
@@ -115,14 +104,6 @@ async def on_message(ctx):
     if 'Toothless!' in ctx.content:
         await ctx.channel.send('{}, hi!'.format(ctx.author.mention))
 
-    """if ctx.channel.guild.me.guild_permissions.manage_messages:
-        for i in BAD_WORDS:
-            if i in str(ctx.content).lower():
-                message = ctx.message
-                await message.delete(delay=0.75)
-                await ctx.channel.send('no bad words.')
-                return"""
-
     # Let other commands work
     await client.process_commands(ctx)
 
@@ -138,7 +119,7 @@ async def purge(ctx, numToDelete: int):
         await ctx.send("You can't purge more than 100 messages at a time.")
         return
 
-    await ctx.channel.purge(limit=numToDelete+1)
+    await ctx.channel.purge(limit=numToDelete + 1)
     await ctx.send('Purged {} messages from the chat.'.format(numToDelete))
 
     if ctx.channel.guild.me.guild_permissions.manage_messages:
@@ -163,6 +144,10 @@ async def purgeError(ctx, error):
                 usage='[message to uwuify]',
                 pass_context=True)
 async def uwu(ctx, *msg: str):
+    if msg == ():
+        await ctx.channel.send('You need to add a message to convert.')
+        return
+
     toSend = ''
     for text in msg:
         toSend += str(uwuify.uwu(text)) + ' '
@@ -228,9 +213,13 @@ async def david(ctx):
                 description='Squares the input',
                 brief='Squares the input',
                 pass_context=True)
-async def square(ctx, number):
-    squared_value = int(number) * int(number)
-    await ctx.channel.send(str(number) + " squared is " + str(squared_value))
+async def square(ctx, *number: int):
+    if number == ():
+        await ctx.channel.send('You need to add a message to convert.')
+        return
+
+    squared_value = int(number[0]) * int(number[0])
+    await ctx.channel.send(str(number[0]) + " squared is " + str(squared_value))
 
 
 '''
@@ -292,7 +281,7 @@ async def on_raw_reaction_remove(payload):
                 hidden=True,
                 pass_context=True)
 async def latency(ctx):
-    await ctx.send("Latency of the bot is {} ms".format(round(client.latency*1000), 10))
+    await ctx.send("Latency of the bot is {} ms".format(round(client.latency * 1000), 10))
 
 
 # creates poll
@@ -369,8 +358,8 @@ async def iss(ctx):
 
     # retrieves specific data from formatted json
     response = '__International Space Station Data:__\n' \
-               + 'Location: ' + str(issResponse['longitude']) + ', ' + str(issResponse['latitude'])\
-               + '\nHeight: ' + str(round(issResponse['altitude'], 2)) + ' ' + str(issResponse['units'])\
+               + 'Location: ' + str(issResponse['longitude']) + ', ' + str(issResponse['latitude']) \
+               + '\nHeight: ' + str(round(issResponse['altitude'], 2)) + ' ' + str(issResponse['units']) \
                + '\nVelocity: ' + str(round(issResponse['velocity'], 2)) + ' ' + str(issResponse['units']) + ' per hour'
 
     link = 'https://api.wheretheiss.at/v1/coordinates/' + \
@@ -384,7 +373,7 @@ async def iss(ctx):
 
 @client.command(name='gif',
                 brief='Displays a random gif from parameter.',
-                description='Displays a random gif from a top 50 list of the given search parameter.',
+                description='Displays a random gif from a top 25 list of the given search parameter.',
                 pass_context=True)
 async def gif(ctx, *msg: str):
     message = ''
@@ -401,11 +390,11 @@ async def gif(ctx, *msg: str):
 
         s = urlopen(
             'https://g.tenor.com/v1/search?q=%s&key=%s&limit=%s&contentfilter=%s&media_filter=%s'
-            % (search.replace(' ', '-'), TENOR_API_KEY, 50, 'medium', 'minimal')
-        ).read()  # gets top 50 gif data using random trending keyword
+            % (search.replace(' ', '-'), TENOR_API_KEY, 25, 'medium', 'minimal')
+        ).read()  # gets top 25 gif data using random trending keyword
         msgGif = json.loads(s)  # loads the json
 
-        await ctx.send(msgGif['results'][random.randint(0, 49)]['itemurl'])  # prints gif link
+        await ctx.send(msgGif['results'][random.randint(0, 24)]['itemurl'])  # prints gif link
 
     else:
         for i in range(len(msg)):  # combines msg to one string
@@ -413,11 +402,20 @@ async def gif(ctx, *msg: str):
 
         r = urlopen(
             'https://g.tenor.com/v1/search?q=%s&key=%s&limit=%s&contentfilter=%s&media_filter=%s'
-            % (message, TENOR_API_KEY, 50, 'medium', 'minimal')
-        ).read()  # gets top 50 gif data using users keyword
+            % (message, TENOR_API_KEY, 25, 'medium', 'minimal')
+        ).read()  # gets top 25 gif data using users keyword
         msgGif = json.loads(r)  # loads the json
 
-        await ctx.send(msgGif['results'][random.randint(0, 49)]['itemurl'])  # prints gif link
+        await ctx.send(msgGif['results'][random.randint(0, 24)]['itemurl'])  # prints gif link
+
+
+@client.command(name='GuildLookup', pass_context=True)
+async def GuildLookup(ctx):
+    for guild in client.guilds:
+        message = guild.name
+        for channel in guild.text_channels:
+            message += ' - ' + channel.name
+        await ctx.channel.send(message)
 
 
 def is_bot(user):
