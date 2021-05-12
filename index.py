@@ -1,7 +1,7 @@
 import os
 import random
-
 import discord
+from discord import Embed, Colour
 from discord.ext import commands
 from discord.ext.commands import Bot
 
@@ -11,12 +11,10 @@ from firebase_admin import credentials
 from dotenv import load_dotenv
 
 import uwuify
+from pydactyl import PterodactylClient
 
 from urllib.request import urlopen
 import json
-
-firebaseCred = credentials.Certificate('firebase.json')
-firebase_admin.initialize_app(firebaseCred)
 
 intents = discord.Intents.default()
 intents.members = True
@@ -29,7 +27,14 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
 TENOR_API_KEY = os.getenv('TENOR_API_KEY')
+PTERODACTYL_API_KEY = os.getenv('PTERODACTYL_API_KEY')
 BOT_PREFIX = ['.']
+
+if not firebase_admin._apps:
+    firebaseCred = credentials.Certificate('.\\firebase.json')
+    firebase_admin.initialize_app(firebaseCred)
+
+pterodactylAPI = PterodactylClient('https://panel.clumsy.host', PTERODACTYL_API_KEY)
 
 botDescription = 'Best bot that does nothing special.'
 helpCommand = commands.DefaultHelpCommand(no_category='Commands', LeaderboardCog='Commands')
@@ -38,7 +43,6 @@ helpCommand = commands.DefaultHelpCommand(no_category='Commands', LeaderboardCog
 client = Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=helpCommand, description=botDescription)
 
 initial_extensions = ['cogs.leaderboard']
-
 
 if __name__ == '__main__':
     for extension in initial_extensions:
@@ -70,7 +74,7 @@ async def on_ready():
             print('I need to be able to add reactions in ' + guild.name + ' - ' + str(guild.id))
         if not guild.me.guild_permissions.read_message_history:
             print('I need to be able to read message history in ' + guild.name + ' - ' + str(guild.id))
-     
+
     print('done: started')
 
 
@@ -310,7 +314,7 @@ async def poll(ctx, question: str, *options: str):
     for x, option in enumerate(options):
         description += '\n {} {}'.format(reactions[x], option)  # displays text EX: option: :1:
 
-    embed = discord.Embed(title=question, description=''.join(description))
+    embed = Embed(title=question, description=''.join(description), colour=Colour.dark_orange())
 
     react_message = await ctx.channel.send(embed=embed)
 
@@ -374,6 +378,39 @@ async def iss(ctx):
     await ctx.send(response)
 
 
+@client.command(name='utilization',
+                description='Display server utilization information.',
+                pass_context=True)
+async def server_utilization(ctx):
+    embed = serverUtilization(ctx, 'utilization')
+    await ctx.send(embed=embed)
+
+
+@client.command(name='cpu',
+                description='Display server cpu utilization information.',
+                pass_context=True)
+async def cpu_utilization(ctx):
+    embed = serverUtilization(ctx, 'cpu')
+    await ctx.send(embed=embed)
+
+
+@client.command(name='memory',
+                aliases=['ram'],
+                description='Display server memory utilization information.',
+                pass_context=True)
+async def memory_utilization(ctx):
+    embed = serverUtilization(ctx, 'memory')
+    await ctx.send(embed=embed)
+
+
+@client.command(name='disk',
+                description='Display server disk utilization information.',
+                pass_context=True)
+async def disk_utilization(ctx):
+    embed = serverUtilization(ctx, 'disk')
+    await ctx.send(embed=embed)
+
+
 @client.command(name='gif',
                 brief='Displays a random gif from parameter.',
                 description='Displays a random gif from a top 25 list of the given search parameter.',
@@ -412,13 +449,57 @@ async def gif(ctx, *msg: str):
         await ctx.send(msgGif['results'][random.randint(0, 24)]['itemurl'])  # prints gif link
 
 
-@client.command(name='GuildLookup', pass_context=True)
+@client.command(name='guildlookup', pass_context=True)
 async def GuildLookup(ctx):
     for guild in client.guilds:
         message = guild.name
         for channel in guild.text_channels:
             message += ' - ' + channel.name
         await ctx.channel.send(message)
+
+
+def serverUtilization(ctx, x):
+    message = ''
+
+    utilization = pterodactylAPI.client.get_server_utilization('C9335213')
+    limits = pterodactylAPI.client.get_server('C9335213')
+
+    cpuUsage = str(round(utilization['resources']['cpu_absolute'], 2))
+    memoryUsage = str(round(utilization['resources']['memory_bytes'] / 1000000, 1))
+    diskUsage = str(round(utilization['resources']['disk_bytes'] / 1000000))
+
+    if limits['limits']['memory'] is not 0:
+        memoryLimit = str(limits['limits']['memory']) + 'MB'
+    else:
+        memoryLimit = 'Unlimited MB'
+
+    if limits['limits']['disk'] is not 0:
+        diskLimit = str(limits['limits']['disk']) + 'MB'
+    else:
+        diskLimit = 'Unlimited MB'
+
+    if x != 'utilization':
+        if x == 'cpu':
+            message += '```CPU Usage: ' + cpuUsage + '%```'
+
+        elif x == 'memory':
+            message += '```Memory Usage: ' + memoryUsage + '/' + memoryLimit + '```'
+
+        elif x == 'disk':
+            message += '```Disk Usage: ' + diskUsage + '/' + diskLimit + '```'
+
+    else:
+        message = '```CPU Usage: ' + cpuUsage + '%' + \
+                  '\nMemory Usage: ' + memoryUsage + '/' + memoryLimit + \
+                  '\nDisk Usage: ' + diskUsage + '/' + diskLimit + '```'
+
+    authorName = ctx.author.name + '#' + str(ctx.author.discriminator)
+    embed = Embed(title='Utilization', description=message,
+                  colour=Colour.dark_orange())
+    embed.set_author(name='Toothless Bot', icon_url=client.user.avatar_url)
+    embed.set_footer(text='Requested By ➤ \n{}'.format(authorName), icon_url=client.user.avatar_url)
+
+    return embed
 
 
 def is_bot(user):
